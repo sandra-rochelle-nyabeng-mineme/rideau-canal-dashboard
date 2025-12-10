@@ -1,11 +1,9 @@
-
-
-# 🌐 Rideau Canal Skateway – Real-time Monitoring Dashboard  
+# Rideau Canal Skateway – Real-time Monitoring Dashboard  
 CST8916 – Remote Data and Real-time Applications  
 Web Dashboard Repository
 - Sandra Rochelle Nyabeng Mineme
 
-
+---
 
 ## 1. Overview
 ### Dashboard features
@@ -37,7 +35,7 @@ The application is built as:
 
 
 
-### 🛠 Technologies Used
+###  Technologies Used
 
 ### Backend
 - **Node.js 18+**
@@ -67,7 +65,7 @@ You need the following before running the dashboard:
   - Container: `SensorAggregations`
   - Partition key: `/location`
 - A working Stream Analytics job writing aggregated data into Cosmos DB
-- (Optional but recommended) A running instance of the sensor simulator
+- A running instance of the sensor simulator
 
 <br>
 
@@ -104,7 +102,7 @@ Start the backend server and dashboard:
 npm start
 ```
 
-ou
+or
 
 ```
 node server.js
@@ -128,62 +126,168 @@ You should see:
 - Last-hour chart(s) once enough data exists
 - Auto-refresh happening every 30 second
 
-## 5.API Endpoints (Backend) 
-### GET /api/latest
+<br>
 
-Returns the latest aggregated record for each location.
+## 5.API Endpoints (Backend)
 
-**Example response:** (Donner un vrai resultat ici)
-[
-  {
-   "id": "Dows Lake-2025-12-02T15:35:00Z",
-    "location": "Dows Lake",
-    "windowStart": "2025-12-02T15:30:00Z",
-    "windowEnd": "2025-12-02T15:35:00Z",
-    "avgIceThickness": 31.2,
-    "minIceThickness": 29.5,
-    "maxIceThickness": 33.0,
-    "avgSurfaceTemperature": -3.5,
-    "minSurfaceTemperature": -5.0,
-    "maxSurfaceTemperature": -1.0,
-    "maxSnowAccumulation": 5.2,
-    "avgExternalTemperature": -9.1,
-    "readingCount": 30,
-    "safetyStatus": "Safe"
+The Rideau Canal Dashboard exposes several REST API endpoints used by the frontend to retrieve real-time and historical ice-monitoring data processed by Azure Stream Analytics and stored in Cosmos DB.
+
+### 1. Health Check
+**GET /api/health**
+
+Verifies that the backend is running and that the Cosmos DB configuration is loaded.
+
+Example Response:
+
+```{
+  "status": "healthy",
+  "timestamp": "2025-12-03T06:22:11.331Z",
+  "cosmosdb": {
+    "endpoint": "configured",
+    "database": "RideauCanalDB",
+    "container": "SensorAggregations"
   }
-]
-
-The frontend uses this endpoint to:
-
-- Populate the 3 location cards
-- Display color-coded safety badges
-
-## GET /api/history?minutes=60
-
-Returns all records newer than the specified number of minutes, across all locations.
-
-**Example:**
+}
 ```
-GET /api/history?minutes=60
+### 2. Latest Aggregated Values per Location
+**GET /api/latest**
+
+Returns the most recent aggregated record for each skating location:
+
+- Dows Lake
+- Fifth Avenue
+- NAC
+
+The backend fetches all documents for each location, sorts them by windowEnd, and returns the most recent.
+
+Example Response:
+```
+{
+  "success": true,
+  "timestamp": "2025-12-03T05:34:28.509Z",
+  "data": [
+    {
+      "location": "Fifth Avenue",
+      "windowEnd": "2025-12-03T05:10:00Z",
+      "avgIceThickness": 27.74,
+      "minIceThickness": 20.36,
+      "maxIceThickness": 37.21,
+      "avgSurfaceTemperature": -3.51,
+      "minSurfaceTemperature": -8.49,
+      "maxSurfaceTemperature": 0.58,
+      "maxSnowAccumulation": 12.73,
+      "avgExternalTemperature": -5.55,
+      "readingCount": 14,
+      "safetyStatus": "Caution"
+    }
+  ]
+}
+```
+### 3. Historical Data for a Specific Location
+**GET /api/history/:location?limit=XX**
+
+Returns the latest N records for a given location, where limit corresponds to the number of 5-minute aggregation windows.
+
+limit=12 → last hour
+limit=24 → last two hours
+
+Path Parameter
+- Name	Description
+- location	One of: "Dows Lake", "Fifth Avenue", "NAC"
+- Query Parameter
+- Name	Required	Description
+- limit	No	Number of records (default: 12)
+
+Example Request:
+`GET /api/history/Dows%20Lake?limit=12`
+
+Example Response: 
+```{
+  "success": true,
+  "location": "Dows Lake",
+  "data": [
+    {
+      "windowEnd": "2025-12-03T04:30:00Z",
+      "avgIceThickness": 31.57,
+      "avgSurfaceTemperature": -2.51,
+      "maxSnowAccumulation": 13.69,
+      "safetyStatus": "Safe"
+    },
+    { "... more documents ..." }
+  ]
+}
+```
+### 4. System Status Across All Locations
+**GET /api/status**
+
+Returns:
+
+-  individual latest status per location
+- computed overall status according to rules:
+  - if any location is Unsafe → overall Unsafe
+  - else if any location is Caution → overall Caution
+  - else → overall Safe
+
+Example Response:
+```
+{
+  "success": true,
+  "overallStatus": "Caution",
+  "locations": [
+    {
+      "location": "Dows Lake",
+      "safetyStatus": "Safe",
+      "windowEnd": "2025-12-03T05:10:00Z"
+    },
+    {
+      "location": "Fifth Avenue",
+      "safetyStatus": "Caution",
+      "windowEnd": "2025-12-03T05:10:00Z"
+    },
+    {
+      "location": "NAC",
+      "safetyStatus": "Safe",
+      "windowEnd": "2025-12-03T05:10:00Z"
+    }
+  ]
+}
 ```
 
-**Response:**
+### 5. Full Data Dump (Debug Only)
+**GET /api/all**
 
-[
-  {
-   "id": "Dows Lake-2025-12-02T15:10:00Z",
-    "location": "Dows Lake",
-    "windowEnd": "2025-12-02T15:10:00Z",
-    "avgIceThickness": 30.5,
-    "avgSurfaceTemperature": -4.1,
-    "safetyStatus": "Safe"
-  }
-]
-The frontend uses this endpoint to:
+Returns every document in the Cosmos DB container, sorted by windowEnd descending.
 
-- Build time-series arrays of values (per location)
-- Plot them using Chart.js (e.g., line charts)
+Useful for debugging but not used by the dashboard.
 
+Example Response:
+
+```
+{
+  "success": true,
+  "count": 178,
+  "data": [
+    {
+      "location": "NAC",
+      "windowEnd": "2025-12-03T05:10:00Z",
+      "avgIceThickness": 30.03,
+      "safetyStatus": "Safe",
+      "id": "d4664662-1110-4e44-8869-c286ed43627e"
+    }
+  ]
+}
+```
+
+### Summary
+
+This backend API enables the dashboard to:
+
+- Display real-time readings for all locations
+- Render historical charts
+- Compute overall safety status
+- Monitor backend health
+
+All endpoints are lightweight, return JSON, and are optimized for Cosmos DB fast reads using the /location partition key.
 <br>
 
 ## 6.Deployment to Azure App Service
@@ -212,11 +316,11 @@ Add the same values as in .env.
 Options:
 
 - GitHub Actions (Recommended and what i choose):
- - Link the GitHub repo to the Web App in Deployment Center
- - Select branch main
+  - Link the GitHub repo to the Web App in Deployment Center
+  - Select branch main
 - ZIP Deploy
- - Zip the project (without node_modules)
- - Use Deploy Center 
+  - Zip the project (without node_modules)
+  - Use Deploy Center 
 - VS Code Deployment : Use “Azure App Service” extension to deploy directly
 
 ### Step 4 — Restart and Test
