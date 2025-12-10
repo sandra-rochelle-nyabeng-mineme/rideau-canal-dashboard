@@ -1,10 +1,4 @@
-Voici ton fichier **`api-documentation.md`** complet, propre, structuré, et aligné avec **ton backend Node.js / Express + Cosmos DB** EXACTEMENT comme tu l’as implémenté.
-
-Tu peux **copier-coller directement dans ton repo** 🎯
-
----
-
-# 📄 API Documentation – Rideau Canal Dashboard
+# API Documentation – Rideau Canal Dashboard
 
 This document describes the REST API endpoints used by the **Rideau Canal Monitoring Dashboard**.
 All endpoints are implemented in **Node.js + Express**, and data is retrieved from **Azure Cosmos DB (SQL API)**.
